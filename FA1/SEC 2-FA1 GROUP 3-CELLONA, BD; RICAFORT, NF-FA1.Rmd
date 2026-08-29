@@ -1,0 +1,86 @@
+---
+title: "SEC 2-FA1 GROUP 3-CELLONA, BD; RICAFORT, NF"
+output: pdf_document
+date: "August 29, 2026"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## 1. Write the skewness program, and use it to calculate the skewness coefficient of the four examination subjects in results.txt (results.csv). Pearson has given an approximate formula for the skewness that is easier to calculate than the exact formula given in Equation 2.1. Write a program to calculate this and apply it to the data in results.txt (results.csv).
+
+```{r}
+results <- read.csv("results.csv")
+
+skewness <- function(x) {
+  x <- na.omit(x)
+  xbar <- mean(x)
+  sum1 <- sum((x - xbar) ** 2)
+  sum2 <- sum((x - xbar) ** 3)
+  skewness <- (sqrt(length(x)) * sum2) / (sum1 ** 1.5)
+  return(skewness)
+}
+
+pearson_skewness <- function(x) {
+  x <- na.omit(x)
+  mean_x <- mean(x)
+  median_x <- median(x)
+  sd_x <- sd(x)
+  skewness <- (3 * (mean_x - median_x)) / sd_x
+  return(skewness)
+}
+
+skewness_results <- data.frame(
+  arch1 = c(skewness(results$arch1),pearson_skewness(results$arch1)),
+  prog1 = c(skewness(results$prog1),pearson_skewness(results$prog1)),
+  arch2 = c(skewness(results$arch2),pearson_skewness(results$arch2)),
+  prog2 = c(skewness(results$prog2),pearson_skewness(results$prog2))
+)
+
+rownames(skewness_results) <- c("Normal Skewness","Pearson Skewness"
+)
+
+print(skewness_results)
+```
+
+### What can you say about these data?
+
+The four subjects show only slight to moderate skewness. Arch1, Prog1, and Prog2 are negatively skewed while Arch2 is positively skewed. Overall, none of the subjects shows a very strong or extreme skew.
+
+### Is it a reasonable approximation?
+
+Yes, Pearson’s formula is a reasonable approximation because it gives the same direction of skewness as the exact formula for all four subjects. However, the values are not exactly the same especially for Prog1. Therefore, it is useful for a quick estimate but the exact skewness formula is more accurate.
+
+## 2. For the class of 50 students of computing detailed in Exercise 1.1, use R to
+
+### (a) form the stem-and-leaf display for each gender, and discuss the advantages of this representation compared to the traditional histogram;
+
+```{r}
+females <- c(57, 59, 78, 79, 60, 65, 68, 71, 75, 48, 51, 55, 
+             56, 41, 43, 44, 75, 78, 80, 81, 83, 83, 85)
+males <- c(48, 49, 49, 30, 30, 31, 32, 35, 37, 41, 86, 42, 51, 53,
+           56, 42, 44, 50, 51, 65, 67, 51, 56, 58, 64, 64, 75)
+```
+
+```{r}
+print("Females")
+stem(females)
+
+print("Males")
+stem(males)
+```
+
+A stem-and-leaf plot displays the actual data values while organizing them to show the distribution. A histogram groups data into intervals or ranges and uses bars to show how frequently values occur. Stem-and-leaf plots are best for smaller datasets while histograms are more useful for larger datasets and quickly showing the overall shape of the data.
+
+### (b) construct a box-plot for each gender and discuss the findings.
+
+```{r}
+boxplot(females, males, 
+        names = c("Females", "Males"),
+        main = "Boxplot of Scores by Gender",
+        ylab = "Scores",
+        col = c("pink", "blue"))
+```
+
+The female group has a higher median score of about 68 while the male group has a median of about 50. The female scores are generally higher while the male scores show a wider spread. The male group also has a very high score of 86 which appears as an outlier in the box plot.
