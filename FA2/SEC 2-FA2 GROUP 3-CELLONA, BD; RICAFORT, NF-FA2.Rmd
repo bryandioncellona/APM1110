@@ -1,0 +1,45 @@
+---
+title: "SEC 2-FA2 GROUP 3-CELLONA, BD; RICAFORT, NF-FA2"
+subtitle: "Github link: https://github.com/bryandioncellona/APM1110/blob/main/FA2/SEC%202-FA2%20GROUP%203-CELLONA%2C%20BD%3B%20RICAFORT%2C%20NF-FA2.Rmd"
+output: pdf_document
+date: "September 1, 2026"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+```
+
+## 2. An experiment consists of tossing two fair coins. Use R to simulate this experiment 100 times and obtain the relative frequency of each possible outcome. Hence, estimate the probability of getting one head and one tail in any order.
+
+```{r}
+# Toss two coins 100 times
+coin1 <- sample(c("H", "T"), 100, replace = TRUE)
+coin2 <- sample(c("H", "T"), 100, replace = TRUE)
+
+# Combine the outcomes
+outcomes <- paste(coin1, coin2, sep = "")
+
+# Frequency of each outcome
+table(outcomes)
+```
+
+## Relative Frequencies
+
+```{r}
+# Find the relative frequency
+table(outcomes) / 100
+```
+
+## Probability of One Head and One Tail
+
+One head and one tail can occur as **HT** or **TH**.
+
+```{r}
+# Estimate the probability
+probability <- sum(outcomes == "HT" | outcomes == "TH") / 100
+
+probability
+```
+
+The estimated probability of getting one head and one tail is given by the simulation result above. It should be close to **0.5**.
