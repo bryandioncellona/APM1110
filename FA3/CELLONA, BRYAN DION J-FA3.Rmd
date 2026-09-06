@@ -1,0 +1,87 @@
+---
+title: "CELLONA, BRYAN DION J-FA3"
+output: pdf_document
+subtitle: "**Github Link: 
+https://github.com/bryandioncellona/APM1110/blob/main/FA3/CELLONA%2C%20BRYAN%20DION%20J-FA3.Rmd**"
+date: "September 6, 2026"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## 5. A geospatial analysis system has four sensors supplying images. The percentage of images supplied by each sensor and the percentage of images relevant to a query are shown in the following table.
+
+```{r}
+# Given
+sensor <- c(1, 2, 3, 4)
+images_supplied <- c(15, 20, 25, 40)
+relevant_images <- c(50, 60, 80, 85)
+
+sensor_data <- data.frame(
+  Sensor = sensor,
+  Percentage_Images_Supplied = images_supplied,
+  Percentage_Relevant_Images = relevant_images
+)
+
+sensor_data
+```
+
+## What is the overall percentage of relevant images?
+
+```{r}
+# Compute
+overall_relevant <- sum(images_supplied * relevant_images) / sum(images_supplied)
+
+# Output the result
+cat("The overall percentage of relevant images is ", overall_relevant, "%.")
+```
+
+## 6. A fair coin is tossed twice. Let $E_1$ be the event that both tosses have the same outcome, that is $E_1 = (HH, TT)$. Let $E_2$ be the event that the first toss is a head, that is, $E_2 = (HH, HT)$. Let $E_3$ be the event that the second toss is a head, that it, $E_3 = (TH, HH)$. Show that $E_1, E_2, \text{and } E_3$ are pairwise independent but not mutually independent.
+
+```{r}
+# Define the sample space
+sample <- c("HH", "HT", "TH", "TT")
+
+# Define events
+E1 <- c("HH", "TT")
+E2 <- c("HH", "HT")
+E3 <- c("HH", "TH")
+
+# Calculate probabilities
+P_E1 <- length(E1) / length(sample)
+P_E2 <- length(E2) / length(sample)
+P_E3 <- length(E3) / length(sample)
+
+P_E1_E2 <- length(intersect(E1, E2)) / length(sample)
+P_E1_E3 <- length(intersect(E1, E3)) / length(sample)
+P_E2_E3 <- length(intersect(E2, E3)) / length(sample)
+
+P_E1_E2_E3 <- length(Reduce(intersect, list(E1, E2, E3))) / length(sample)
+
+# Check for pairwise independence
+pairwise_independent <- 
+  (P_E1_E2 == P_E1 * P_E2) &
+  (P_E1_E3 == P_E1 * P_E3) &
+  (P_E2_E3 == P_E2 * P_E3)
+
+# Check for mutual independence
+mutual_independent <- pairwise_independent &
+  (P_E1_E2_E3 == P_E1 * P_E2 * P_E3)
+
+# Display results
+cat("P(E1) =", P_E1, "\n")
+cat("P(E2) =", P_E2, "\n")
+cat("P(E3) =", P_E3, "\n")
+
+cat("P(E1 and E2) =", P_E1_E2, "\n")
+cat("P(E1 and E3) =", P_E1_E3, "\n")
+cat("P(E2 and E3) =", P_E2_E3, "\n")
+
+cat("P(E1 and E2 and E3) =", P_E1_E2_E3, "\n")
+
+cat("Pairwise Independent:", pairwise_independent, "\n")
+cat("Mutually Independent:", mutual_independent, "\n")
+
+cat("\nConclusion: The events E1, E2, and E3 are pairwise independent but not mutually independent.\n")
+```
