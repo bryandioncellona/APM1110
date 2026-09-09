@@ -1,0 +1,106 @@
+---
+title: "SEC 2-FA4 GROUP 3-CELLONA, BD; RICAFORT, NF-FA4"
+subtitle: "**Github link: https://github.com/bryandioncellona/APM1110/blob/main/FA4/SEC%202-FA4%20GROUP%203-CELLONA%2C%20BD%3B%20RICAFORT%2C%20NF-FA4.Rmd**"
+output: pdf_document
+date: "September 9, 2026"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## 2. A binary communication channel carries data as one of two sets of signals denoted by 0 and 1. Owing to noise, a transmitted 0 is sometimes received as a 1, and a transmitted 1 is sometimes received as a 0. For a given channel, it can be assumed that a transmitted 0 is correctly received with probability 0.95, and a transmitted 1 is correctly received with probability 0.75. Also, 70% of all messages are transmitted as a 0. If a signal is sent, determine the probability that:
+
+```{r}
+binary <- data.frame(
+  Correct = c(0.95, 0.75),
+  Error   = c(0.05, 0.25),
+  Sent    = c(0.70, 0.30),
+  row.names = c("0", "1")
+)
+
+binary
+```
+
+### (a) a 1 was received;
+
+$P(R = 1) = P(R = 1 | T = 0) \cdot P(T = 0) + P(R = 1 | T = 1) \cdot P(T = 1)$
+
+```{r}
+prob_get1 <- (binary["0", "Error"] * binary["0", "Sent"]) +
+             (binary["1", "Correct"] * binary["1", "Sent"])
+
+cat(round(prob_get1 * 100, 2), "%", sep = "")
+```
+
+### (b) a 1 was transmitted given than a 1 was received.
+
+$P(T = 1 | R = 1) = \frac{P(T = 1) \cdot P(R = 1 | T = 1)}{P(R = 1)}$
+
+```{r}
+prob_send1_get1 <- (binary["1", "Sent"] * binary["1", "Correct"]) /
+                   prob_get1
+
+cat(round(prob_send1_get1 * 100, 2), "%", sep = "")
+```
+
+## 7. There are three employees working at an IT company: Jane, Amy, and Ava, doing 10%, 30%, and 60% of the programming, respectively. 8% of Jane’s work, 5% of Amy’s work, and just 1% of Ava‘s work is in error. What is the overall percentage of error? If a program is found with an error, who is the most likely person to have written it?
+
+```{r}
+# Given probabilities
+P_Jane <- 0.10
+P_Amy  <- 0.30
+P_Ava  <- 0.60
+
+P_E_Jane <- 0.08
+P_E_Amy  <- 0.05
+P_E_Ava  <- 0.01
+
+
+# Overall percentage of error
+P_Error <- (P_Jane * P_E_Jane) +
+  (P_Amy * P_E_Amy) +
+  (P_Ava * P_E_Ava)
+
+cat("Overall Error Probability:", P_Error, "\n")
+cat("Overall Error Percentage:", P_Error * 100, "%\n\n")
+
+
+# If a program is found with an error,
+# who is the most likely person to have written it?
+employee <- c("Jane", "Amy", "Ava")
+
+# Bayes' Theorem
+P_Jane_given_Error <- (P_Jane * P_E_Jane) / P_Error
+P_Amy_given_Error  <- (P_Amy * P_E_Amy) / P_Error
+P_Ava_given_Error  <- (P_Ava * P_E_Ava) / P_Error
+
+P_given_Error <- c(
+  P_Jane_given_Error,
+  P_Amy_given_Error,
+  P_Ava_given_Error
+)
+
+# Create a table of results
+E_table <- data.frame(
+  Employee = employee,
+  Probability = round(P_given_Error, 4),
+  Percentage = round(P_given_Error * 100, 2)
+)
+
+print(E_table)
+
+# Find the employee with the highest probability
+most_likely <- which.max(P_given_Error)
+most_likely_employee <- employee[most_likely]
+most_likely_prob <- P_given_Error[most_likely]
+
+cat("Most likely employee to have written the program:",
+    most_likely_employee, "\n")
+
+cat("Probability:",
+    round(most_likely_prob, 4), "\n")
+
+cat("Percentage:",
+    round(most_likely_prob * 100, 2), "%\n")
+```
