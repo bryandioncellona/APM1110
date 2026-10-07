@@ -1,0 +1,205 @@
+---
+title: "FA7: Campus-Related Statistical Analysis"
+author: "Group 3"
+output:
+  pdf_document:
+    fig_caption: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Part 1: Campus-Related Issues Using Exponential Distribution 
+
+# Introduction
+
+At Far Eastern University (FEU) Manila, various events occur randomly such as student arrivals at the canteen, elevator availability, or queues for documents at the Registrar. Understanding these patterns helps the university plan its resources and provide better services. This case study examines the **time between student arrivals at the canteen queue**.
+
+The goal of the study is to estimate the average time between arrivals and to assess probabilities related to this situation using the exponential distribution.
+
+# Chosen Scenario
+
+The chosen scenario is the **time between students joining the canteen queue from 12:00 NN to 1:00 PM**. The arrivals are assumed to occur randomly and independently at a constant average rate, which makes the exponential distribution a suitable model for the waiting time between them.
+
+# Data Collection
+
+The data were collected at the Tams Cravings from 12:00 NN to 1:00 PM. Using a phone stopwatch, the time (in minutes) between the arrivals of consecutive students at the queue was recorded. At least 30 time intervals were observed. The data were recorded in a CSV file (`data.csv`) and analyzed using R.
+
+```{r data, message=FALSE, warning=FALSE}
+library(ggplot2)
+
+data <- read.csv("Part 1 - Data.csv")
+time_intervals <- as.numeric(data$interval_minutes)
+time_intervals <- time_intervals[!is.na(time_intervals)]
+
+n <- length(time_intervals)
+stopifnot(n >= 30)
+```
+
+A total of `r n` time intervals were used in the analysis.
+
+\newpage
+
+# Verifying the Exponential Model
+
+The exponential distribution is appropriate when events occur randomly and independently at a constant average rate. Two quick checks are used here. For an exponential distribution, the standard deviation is equal to the mean, so the coefficient of variation should be close to 1. The Kolmogorov-Smirnov (KS) test compares the data with the fitted exponential distribution. A p-value greater than 0.05 means there is no significant evidence against the model.
+
+```{r checks}
+cv <- sd(time_intervals) / mean(time_intervals)
+ks <- suppressWarnings(ks.test(time_intervals, "pexp", rate = 1 / mean(time_intervals)))
+
+cat("Mean:", round(mean(time_intervals), 4), "minutes\n",
+    "Standard deviation:", round(sd(time_intervals), 4), "minutes\n",
+    "Coefficient of variation:", round(cv, 4), "\n",
+    "KS test p-value:", round(ks$p.value, 4))
+```
+
+# Parameter Computation
+
+The exponential distribution is defined by:
+
+Probability Density Function (PDF):
+
+$$
+f(x)=\lambda e^{-\lambda x}, x \geq 0
+$$
+
+Cumulative Distribution Function (CDF):
+
+$$
+P(X \leq x)=1-e^{-\lambda x}
+$$
+
+where:
+
+$$
+\lambda=\frac{1}{\text{mean}}
+$$
+
+The parameter $\lambda$ represents the estimated arrival rate. The expected value, or mean waiting time, is:
+
+$$
+E(X)=\frac{1}{\lambda}
+$$
+
+The computation was performed using R:
+
+```{r parameters}
+mean_minutes <- mean(time_intervals)
+lambda <- 1 / mean_minutes
+
+x <- seq(0, max(time_intervals), length.out = 200)
+pdf_data <- data.frame(x = x, pdf = dexp(x, rate = lambda))
+cdf_data <- data.frame(x = x, cdf = pexp(x, rate = lambda))
+
+cat("The average time between arrivals (mean):", round(mean_minutes, 5), "minutes.\n",
+    "The estimated arrival rate (lambda):", round(lambda, 5), "arrivals per minute.")
+```
+
+Based on the computation, the estimated average time between arrivals is:
+
+$$
+\text{Mean} = `r round(mean_minutes, 5)` \text{ minutes}
+$$
+
+The estimated arrival rate is:
+
+$$
+\lambda = `r round(lambda, 5)` \text{ arrivals per minute}
+$$
+
+## Probabilities
+
+```{r probabilities}
+p1  <- pexp(1, rate = lambda)                           # P(X <= 1)
+p2  <- 1 - pexp(3, rate = lambda)                       # P(X > 3)
+p3  <- pexp(3, rate = lambda) - pexp(1, rate = lambda)  # P(1 < X < 3)
+q90 <- qexp(0.90, rate = lambda)                        # 90th percentile
+
+results <- data.frame(
+  Event = c("P(X <= 1 min)", "P(X > 3 min)", "P(1 < X < 3 min)",
+            "90th percentile (min)"),
+  Exponential_Model = round(c(p1, p2, p3, q90), 4),
+  Observed = round(c(mean(time_intervals <= 1),
+                     mean(time_intervals > 3),
+                     mean(time_intervals > 1 & time_intervals < 3),
+                     quantile(time_intervals, 0.90)), 4)
+)
+knitr::kable(results, caption = "Model probabilities compared with observed proportions")
+```
+
+\newpage
+
+# Visualization
+
+```{r fig1, fig.cap="Probability Density Function (PDF) of the fitted exponential distribution"}
+ggplot(pdf_data, aes(x = x, y = pdf)) +
+  geom_line(color = "blue") +
+  labs(
+    title = "Probability Density Function of Exponential Distribution",
+    x = "Interval Between Arrivals (minutes)",
+    y = "Density"
+  ) +
+  theme_minimal()
+```
+
+\newpage
+
+```{r fig2, fig.cap="Cumulative Distribution Function (CDF) of the fitted exponential distribution"}
+ggplot(cdf_data, aes(x = x, y = cdf)) +
+  geom_line(color = "blue") +
+  labs(
+    title = "Cumulative Distribution Function of Exponential Distribution",
+    x = "Interval Between Arrivals (minutes)",
+    y = "Cumulative Probability"
+  ) +
+  theme_minimal()
+```
+
+\newpage
+
+```{r fig3, fig.cap="Histogram of observed time intervals with the fitted exponential PDF"}
+ggplot(data.frame(time_intervals), aes(x = time_intervals)) +
+  geom_histogram(aes(y = after_stat(density)), binwidth = 1,
+                 fill = "blue", color = "black", alpha = 0.6) +
+  stat_function(fun = dexp, args = list(rate = lambda),
+                color = "red", linewidth = 1) +
+  labs(
+    title = "Histogram of Time Intervals with Exponential PDF",
+    x = "Time Intervals (minutes)",
+    y = "Density"
+  ) +
+  theme_minimal()
+```
+
+\newpage
+
+# Interpretation
+
+```{r interp-values, include=FALSE}
+per_hour   <- lambda * 60
+per_10min  <- lambda * 10
+fit_ok     <- ks$p.value > 0.05
+fit_concl  <- ifelse(fit_ok,
+  paste0("The KS test (p = ", round(ks$p.value, 3), ") found no significant evidence against the exponential distribution, so it is a reasonable model for these arrivals."),
+  paste0("The KS test (p = ", round(ks$p.value, 3), ") suggests that the exponential distribution is only a rough model for these arrivals, and a model with a changing rate may be more appropriate."))
+```
+
+**Average rate.** The mean time between arrivals is `r round(mean_minutes, 2)` minutes, which is equivalent to an arrival rate of $\lambda =$ `r round(lambda, 4)` students per minute, or about `r round(per_hour, 1)` students per hour. In any 10-minute period, we expect about `r round(per_10min, 1)` students to join the queue.
+
+**Shape of the distribution.** Figure 1 shows that the density is highest at very short intervals and then decreases exponentially. This means that short gaps between arrivals are the most common, while long gaps happen only occasionally. Figure 3 shows that the histogram of the observed intervals follows the same shape as the fitted curve.
+
+**Probabilities.** Figure 2 shows how quickly the probability accumulates as the waiting time increases. The chance that the next student arrives within 1 minute is `r round(p1 * 100, 1)`%, and the chance that the gap is longer than 3 minutes is `r round(p2 * 100, 1)`%. About 90% of the gaps are shorter than `r round(q90, 2)` minutes, so waiting longer than this is unusual.
+
+# Real-World Implications
+
+The estimated arrival rate gives the university a concrete number to plan with, and the same method can be used for other campus situations where events happen at random times.
+
+1)  **Canteen staffing and queue management.** With about `r round(per_hour, 1)` arrivals per hour, the canteen can estimate how many cashiers or serving counters are needed to keep the line short. Because the gaps are random, short bursts of several arrivals in a row will still happen, so some spare capacity is needed during peak hours instead of staffing only for the average.
+
+2)  **Scheduling by time of day.** Repeating the study at different times, such as before classes, at lunch, and in the late afternoon, would show how $\lambda$ changes during the day. The canteen and other offices (library, Registrar, cashier) can then schedule more staff when $\lambda$ is high and fewer when it is low.
+
+3)  **Setting service targets.** Percentiles such as the 90th percentile of `r round(q90, 2)` minutes can be used to set realistic targets, for example to check whether service is fast enough to keep up with the typical gaps between arrivals.
+
+4)  **Student convenience.** Students can use queue information to choose less crowded times to eat or to line up for services.
