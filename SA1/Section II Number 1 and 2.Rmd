@@ -1,0 +1,393 @@
+
+---
+title: "Section II Number 1 and 2"
+author: "Bryan Dion Cellona and Nathalie Faith Ricafort"
+date: "2026-10-11"
+output: pdf_document
+---
+
+# II. Analyze the specified Bitcoin and Ethereum return datasets using distribution fitting and normality testing.
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = TRUE,
+  warning = FALSE,
+  message = FALSE
+)
+
+library(data.table)
+library(ggplot2)
+library(lubridate)
+```
+
+# 1. Find out which probability distribution function best fits Bitcoin’s returns for trading data every minute, from January 1, 2012 to September 15, 2026, for Bitcoin quoted in United States dollars or the BTC/USD pair. 
+
+## Data Preparation
+
+```{r bitcoin-data}
+btc <- fread("btcusd_1-min_data.csv")
+
+# Convert timestamp
+btc$Timestamp <- as.POSIXct(
+  as.numeric(btc$Timestamp),
+  origin = "1970-01-01",
+  tz = "UTC"
+)
+
+# Filter dates and clean data
+btc <- btc[
+  Timestamp >= as.POSIXct("2012-01-01", tz = "UTC") &
+  Timestamp < as.POSIXct("2026-09-16", tz = "UTC") &
+  is.finite(Close) & Close > 0
+]
+
+setorder(btc, Timestamp)
+
+# Calculate one-minute log returns
+btc[, log_return := c(NA, diff(log(Close)))]
+btc[, gap := c(NA, diff(as.numeric(Timestamp)))]
+
+returns <- btc[
+  gap == 60 & is.finite(log_return),
+  log_return
+]
+
+cat("Bitcoin observations:", length(returns), "\n")
+cat("First date:", as.character(min(btc$Timestamp)), "\n")
+cat("Last date:", as.character(max(btc$Timestamp)), "\n")
+
+if (length(returns) < 100) {
+  stop("Insufficient Bitcoin returns.")
+}
+```
+
+## Histogram of Bitcoin Returns
+
+```{r bitcoin-histogram}
+ggplot(data.frame(returns), aes(x = returns)) +
+  geom_histogram(
+    aes(y = after_stat(density)),
+    bins = 100,
+    fill = "lightblue",
+    color = "black"
+  ) +
+  labs(
+    title = "Bitcoin One-Minute Log Returns",
+    x = "Log Returns",
+    y = "Density"
+  ) +
+  theme_minimal()
+```
+
+## Distribution Fitting
+
+Four distributions are compared:
+
+1. Normal
+2. Student's t
+3. Logistic
+4. Laplace
+
+A reproducible sample is used to make the fitting process faster.
+
+```{r bitcoin-fitting}
+set.seed(123)
+
+x <- sample(
+  returns,
+  min(30000, length(returns))
+)
+
+# Scale returns for numerical stability
+x <- x * 10000
+n <- length(x)
+
+# Normal distribution
+mu_n <- mean(x)
+sd_n <- sqrt(mean((x - mu_n)^2))
+
+ll_n <- sum(dnorm(x, mu_n, sd_n, log = TRUE))
+
+# Student's t distribution
+t_nll <- function(p) {
+  mu <- p[1]
+  s <- exp(p[2])
+  df <- 2 + exp(p[3])
+
+  -sum(dt((x - mu) / s, df, log = TRUE) - log(s))
+}
+
+fit_t <- optim(
+  c(median(x), log(sd(x)), log(3)),
+  t_nll,
+  method = "BFGS",
+  control = list(maxit = 500)
+)
+
+ll_t <- -fit_t$value
+
+# Logistic distribution
+logistic_nll <- function(p) {
+  mu <- p[1]
+  s <- exp(p[2])
+  -sum(dlogis(x, mu, s, log = TRUE))
+}
+
+fit_l <- optim(
+  c(median(x), log(sd(x))),
+  logistic_nll,
+  method = "BFGS"
+)
+
+ll_l <- -fit_l$value
+
+# Laplace distribution
+mu_lp <- median(x)
+b_lp <- mean(abs(x - mu_lp))
+
+ll_lp <- -n * log(2 * b_lp) -
+  sum(abs(x - mu_lp)) / b_lp
+
+# Compare AIC and BIC
+results <- data.frame(
+  Distribution = c(
+    "Normal", "Student's t",
+    "Logistic", "Laplace"
+  ),
+  AIC = c(
+    4 - 2 * ll_n,
+    6 - 2 * ll_t,
+    4 - 2 * ll_l,
+    4 - 2 * ll_lp
+  ),
+  BIC = c(
+    log(n)*2 - 2*ll_n,
+    log(n)*3 - 2*ll_t,
+    log(n)*2 - 2*ll_l,
+    log(n)*2 - 2*ll_lp
+  )
+)
+
+results <- results[order(results$AIC), ]
+
+print(results, row.names = FALSE)
+```
+
+## Comparison of Fitted Distributions
+
+```{r bitcoin-comparison}
+# Parameters
+mu_t <- fit_t$par[1]
+s_t <- exp(fit_t$par[2])
+df_t <- 2 + exp(fit_t$par[3])
+
+mu_l <- fit_l$par[1]
+s_l <- exp(fit_l$par[2])
+
+# Density curves
+xx <- seq(
+  quantile(x, 0.001),
+  quantile(x, 0.999),
+  length.out = 500
+)
+
+curves <- data.frame(
+  x = rep(xx, 4),
+  density = c(
+    dnorm(xx, mu_n, sd_n),
+    dt((xx - mu_t)/s_t, df_t)/s_t,
+    dlogis(xx, mu_l, s_l),
+    exp(-abs(xx - mu_lp)/b_lp)/(2*b_lp)
+  ),
+  Distribution = rep(
+    c("Normal", "Student's t", "Logistic", "Laplace"),
+    each = length(xx)
+  )
+)
+
+ggplot(data.frame(x), aes(x = x)) +
+  geom_histogram(
+    aes(y = after_stat(density)),
+    bins = 100,
+    fill = "gray85",
+    color = "white"
+  ) +
+  geom_line(
+    data = curves,
+    aes(x = x, y = density, color = Distribution),
+    linewidth = 1,
+    inherit.aes = FALSE
+  ) +
+  coord_cartesian(xlim = range(xx)) +
+  labs(
+    title = "Bitcoin: Fitted Probability Distributions",
+    x = "Log Returns (scaled by 10,000)",
+    y = "Density"
+  ) +
+  theme_minimal()
+```
+
+## Conclusion
+
+```{r bitcoin-conclusion}
+best <- results$Distribution[1]
+
+cat("Best-fitting distribution:", best, "\n")
+cat("Lowest AIC:", results$AIC[1], "\n")
+
+cat(
+  "Based on the AIC comparison,",
+  best,
+  "provides the best relative fit among",
+  "the four candidate distributions.\n"
+)
+```
+
+The distribution with the lowest AIC is selected as the best-fitting model among the four distributions considered. BIC provides an additional comparison.
+
+---
+
+# 2. Test using Shapiro-Wilk normality test the Ethereum returns for trading data every five minutes, from August 7, 2015 to September 15, 2026.
+
+## Data Preparation
+
+```{r ethereum-prepare}
+eth <- fread("ethusd_1min_ohlc.csv")
+
+# Convert timestamp
+eth$timestamp <- as.POSIXct(
+  as.numeric(eth$timestamp),
+  origin = "1970-01-01",
+  tz = "UTC"
+)
+
+# Filter dates
+eth <- eth[
+  timestamp >= as.POSIXct("2015-08-07", tz = "UTC") &
+  timestamp < as.POSIXct("2026-09-16", tz = "UTC") &
+  is.finite(close) & close > 0
+]
+
+setorder(eth, timestamp)
+
+cat("First date:", as.character(min(eth$timestamp)), "\n")
+cat("Last date:", as.character(max(eth$timestamp)), "\n")
+
+# Convert one-minute data to five-minute data
+eth[, interval := floor_date(timestamp, "5 minutes")]
+
+eth5 <- eth[
+  , .(price = tail(close, 1)),
+  by = interval
+]
+
+setorder(eth5, interval)
+
+# Calculate five-minute log returns
+eth5[, log_return := c(NA, diff(log(price)))]
+eth5[, gap := c(NA, diff(as.numeric(interval)))]
+
+returns5 <- eth5[
+  gap == 300 & is.finite(log_return),
+  log_return
+]
+
+cat("Five-minute returns:", length(returns5), "\n")
+
+if (length(returns5) < 3) {
+  stop("Insufficient Ethereum returns.")
+}
+```
+
+## Shapiro-Wilk Normality Test
+
+Hypotheses:
+
+\(H_0\): Ethereum five-minute returns are normally distributed.
+
+\(H_1\): Ethereum five-minute returns are not normally distributed.
+
+Significance level: \(\alpha = 0.05\).
+
+```{r ethereum-shapiro}
+set.seed(123)
+
+# Maximum of 5000 observations
+eth_sample <- sample(
+  returns5,
+  min(5000, length(returns5))
+)
+
+shapiro_result <- shapiro.test(eth_sample)
+
+print(shapiro_result)
+
+if (shapiro_result$p.value < 0.05) {
+  cat("\nDecision: Reject H0.\n")
+  cat("The sampled Ethereum returns are not normally distributed.\n")
+} else {
+  cat("\nDecision: Fail to reject H0.\n")
+  cat("There is insufficient evidence against normality.\n")
+}
+```
+
+## Q-Q Plot
+
+```{r ethereum-qqplot}
+qqnorm(
+  eth_sample,
+  main = "Q-Q Plot of Ethereum Five-Minute Returns"
+)
+
+qqline(eth_sample, col = "red", lwd = 2)
+```
+
+## Histogram with Normal Curve
+
+```{r ethereum-histogram}
+hist(
+  eth_sample,
+  breaks = 60,
+  probability = TRUE,
+  col = "lightblue",
+  border = "white",
+  main = "Ethereum Five-Minute Log Returns",
+  xlab = "Log Returns"
+)
+
+curve(
+  dnorm(
+    x,
+    mean = mean(eth_sample),
+    sd = sd(eth_sample)
+  ),
+  col = "red",
+  lwd = 2,
+  add = TRUE
+)
+```
+
+## Conclusion
+
+```{r ethereum-conclusion}
+cat("Shapiro-Wilk W statistic:",
+    unname(shapiro_result$statistic), "\n")
+
+cat("P-value:", shapiro_result$p.value, "\n")
+
+if (shapiro_result$p.value < 0.05) {
+  cat(
+    "At the 5% significance level,",
+    "we reject the null hypothesis.",
+    "The sampled Ethereum five-minute",
+    "returns are not normally distributed."
+  )
+} else {
+  cat(
+    "At the 5% significance level,",
+    "we fail to reject the null hypothesis.",
+    "There is insufficient evidence",
+    "to reject normality."
+  )
+}
+```

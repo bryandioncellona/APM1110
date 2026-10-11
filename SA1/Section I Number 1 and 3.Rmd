@@ -1,0 +1,150 @@
+---
+title: "Section I Number 1 and 3"
+author: "Bryan Dion Cellona and Nathalie Faith Ricafort"
+date: "2026-10-11"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+# Configure R Markdown to display code
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Item 1: Probability of a Defective Product
+
+A company has three factories producing a product. The probability that a randomly selected product is defective is calculated using the production proportions and defective rates.
+
+```{r item1}
+# Production proportions
+# These example values satisfy the required conditions
+x1 <- 0.30
+x2 <- 0.35
+x3 <- 0.35
+
+# Defective rates
+y1 <- 0.03
+y2 <- 0.04
+y3 <- 0.05
+
+# Check the production proportions
+stopifnot(
+  all(c(x1, x2, x3) >= 0.10),
+  all(c(x1, x2, x3) <= 0.40),
+  abs(sum(x1, x2, x3) - 1) < 1e-8
+)
+
+# Check the defective rates
+stopifnot(
+  all(c(y1, y2, y3) >= 0.01),
+  all(c(y1, y2, y3) <= 0.05),
+  abs(sum(y1, y2, y3) - 0.12) < 1e-8
+)
+
+# Calculate the overall probability of a defective product
+prob_defective <- x1*y1 + x2*y2 + x3*y3
+
+# Display the results
+cat(
+  "Probability that a product is defective:",
+  sprintf("%.4f", prob_defective), "\n"
+)
+
+cat(
+  "Percentage defective:",
+  sprintf("%.2f%%", prob_defective * 100), "\n"
+)
+```
+
+# Item 3: Geometric Distribution Simulation
+
+Simulate 10,000 searches until the first success, assuming each site has a 60% chance of containing the key phrase.
+
+```{r item3_simulation}
+# Set the probability of success
+p <- 0.60
+
+# Number of simulations
+N <- 10000
+
+# Set a seed for reproducibility
+set.seed(1110)
+
+# Generate searches until the first success
+# rgeom() counts failures, so add 1 to count total searches
+X <- rgeom(N, prob = p) + 1
+
+# Calculate the mean and variance
+mean_X <- mean(X)
+var_X <- var(X)
+
+# Display the results
+cat("COMPLETE SIMULATION\n")
+cat(sprintf("Mean: %.4f\n", mean_X))
+cat(sprintf("Variance: %.4f\n", var_X))
+```
+
+## Simulated Probability Distribution
+
+```{r item3_histogram, fig.width=7, fig.height=5}
+# Estimate the probability of each number of searches
+simulated_pmf <- prop.table(table(X))
+
+# Plot the estimated probability distribution
+barplot(
+  simulated_pmf,
+  main = "Simulated Distribution of Searches",
+  xlab = "Number of Searches Until First Success",
+  ylab = "Estimated Probability",
+  col = "lightblue",
+  border = "black"
+)
+```
+
+## Conditional Distribution After Three Failures
+
+```{r item3_conditional}
+# Select simulations where more than 3 searches were required
+# Subtract 3 to count the additional searches after the first
+# three unsuccessful searches
+X_conditional <- X[X > 3] - 3
+
+# Calculate conditional mean and variance
+mean_conditional <- mean(X_conditional)
+var_conditional <- var(X_conditional)
+
+# Display results
+cat("CONDITIONAL SIMULATION AFTER THREE FAILURES\n")
+cat("Number of qualifying simulations:",
+    length(X_conditional), "\n")
+cat(sprintf("Conditional mean: %.4f\n", mean_conditional))
+cat(sprintf("Conditional variance: %.4f\n", var_conditional))
+```
+
+## Check the Memoryless Property
+
+```{r item3_memoryless}
+# Estimate P(X = 4 | X > 3) and P(X = 5 | X > 3)
+prob_X4_given_Xgt3 <- sum(X == 4) / sum(X > 3)
+prob_X5_given_Xgt3 <- sum(X == 5) / sum(X > 3)
+
+# Estimate P(X = 1) and P(X = 2)
+prob_X1 <- mean(X == 1)
+prob_X2 <- mean(X == 2)
+
+# Display the comparisons
+cat("MEMORYLESS PROPERTY COMPARISON\n")
+
+cat(sprintf("P(X = 4 | X > 3): %.4f\n",
+            prob_X4_given_Xgt3))
+cat(sprintf("P(X = 1):         %.4f\n", prob_X1))
+
+cat(sprintf("P(X = 5 | X > 3): %.4f\n",
+            prob_X5_given_Xgt3))
+cat(sprintf("P(X = 2):         %.4f\n", prob_X2))
+```
+
+## Interpretation
+
+The geometric distribution has the memoryless property. The probability distribution of the additional searches after three unsuccessful searches is the same as the distribution at the beginning of the search.
+
+The simulated probabilities and statistics may differ slightly because they are estimates based on 10,000 simulations. \`\`\`
